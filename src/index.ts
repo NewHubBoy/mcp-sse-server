@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
+import axios from "axios";
 // Define the base URL for the National Weather Service (NWS) API
 // and the user agent string for API requests
 const NWS_API_BASE = "https://api.weather.gov";
@@ -12,27 +13,31 @@ const USER_AGENT = "weather-app/1.0";
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || "your-default-token";
 
 // 权限验证中间件
-const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+const authMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ 
-      error: 'Unauthorized',
-      message: 'Missing or invalid Bearer token' 
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({
+      error: "Unauthorized",
+      message: "Missing or invalid Bearer token",
     });
     return;
   }
-  
-  const token = authHeader.split(' ')[1];
-  
+
+  const token = authHeader.split(" ")[1];
+
   if (token !== ACCESS_TOKEN) {
-    res.status(401).json({ 
-      error: 'Unauthorized',
-      message: 'Invalid token'
+    res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid token",
     });
     return;
   }
-  
+
   next();
 };
 
@@ -269,18 +274,48 @@ server.tool(
   }
 );
 
-// 主函数：启动服务器
-async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Weather MCP Server running on stdio");
-}
+// 更具提供的用户名密码进行登录拿到token
+server.tool(
+  "login",
+  "Login to the 梦幻方格 system",
+  {
+    username: z.string().describe("The username of the user"),
+    password: z.string().describe("The password of the user"),
+  },
+  async ({ username, password }) => {
+    const { data: userdata } = await axios.post(
+      "http://113.45.222.199:3333/api/user/login",
+      {
+        phone: username,
+        password,
+      }
+    );
+    if (!userdata) {
+      return {
+        content: [{ type: "text", text: `Unauthorized` }],
+      };
+    }
+    console.log(userdata.data.token);
+    return {
+      content: [{ type: "text", text: `The token is ${userdata.data.token}` }],
+    };
+  }
+);
 
-// 错误处理：如果主函数发生错误，打印错误信息并退出
-main().catch((error) => {
-  console.error("Fatal error in main():", error);
-  process.exit(1);
-});
+
+
+// 主函数：启动服务器
+// async function main() {
+//   const transport = new StdioServerTransport();
+//   await server.connect(transport);
+//   console.error("Weather MCP Server running on stdio");
+// }
+
+// // 错误处理：如果主函数发生错误，打印错误信息并退出
+// main().catch((error) => {
+//   console.error("Fatal error in main():", error);
+//   process.exit(1);
+// });
 
 const app = express();
 
