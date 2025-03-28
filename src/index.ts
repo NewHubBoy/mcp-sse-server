@@ -289,7 +289,7 @@ const app = express();
 const transports: { [sessionId: string]: SSEServerTransport } = {};
 
 // 添加权限中间件到 SSE 路由
-app.get("/sse", authMiddleware, async (_: Request, res: Response) => {
+app.get("/sse", async (_: Request, res: Response) => {
   const transport = new SSEServerTransport("/messages", res);
   transports[transport.sessionId] = transport;
   res.on("close", () => {
@@ -299,7 +299,7 @@ app.get("/sse", authMiddleware, async (_: Request, res: Response) => {
 });
 
 // 添加权限中间件到消息路由
-app.post("/messages", authMiddleware, async (req: Request, res: Response) => {
+app.post("/messages", async (req: Request, res: Response) => {
   const sessionId = req.query.sessionId as string;
   const transport = transports[sessionId];
   if (transport) {
